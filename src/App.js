@@ -7,8 +7,13 @@ const contractAddress = "0xc70850eE33a5b6851167336992F36Bd059210bA7";
 const abi = contract.abi;
 
 function App() {
-
   const [currentAccount, setCurrentAccount] = useState(null);
+  const [isMinting, setMinting] = useState(false);
+  const [nftContract, setNftContract] = useState(null);
+
+  useEffect(() => {
+    checkWalletIsConnected();
+  }, [])
 
   const checkWalletIsConnected = async () => {
     const { ethereum } = window;
@@ -58,11 +63,13 @@ function App() {
 
         console.log("Initialize payment");
         let nftTxn = await nftContract.mint(1, { value: ethers.utils.parseEther("0.05") });
-
+        setMinting(true);
         console.log("Mining... please wait");
         await nftTxn.wait();
-
+        setMinting(false);
         console.log(`Mined, see transaction: https://rinkeby.etherscan.io/tx/${nftTxn.hash}`);
+        setNftContract(nftTxn)
+        console.log('nftTxn ', nftTxn)
 
       } else {
         console.log("Ethereum object does not exist");
@@ -89,15 +96,30 @@ function App() {
     )
   }
 
-  useEffect(() => {
-    checkWalletIsConnected();
-  }, [])
-
   return (
     <div className='main-app'>
-      <h1>HOMEUA MINTª</h1>
-      <div>
+      <h1>HOMEUA MINT</h1>
+      <div className='mt40'>
         {currentAccount ? mintNftButton() : connectWalletButton()}
+      </div>
+      {
+        isMinting &&
+            <div className='mt40'>...Minting HOMEUA</div>
+      }
+      {
+        nftContract?.to &&
+        <div className='mt40'>
+          <div>HOMEUA minting successful!!!!</div>
+          <a href={`https://testnets.opensea.io/${nftContract.from}`}>Click here</a>
+          <span> to view your NFT on OpenSea.</span>
+        </div>
+      }
+      <div className='mt40'>
+        <a href={`https://rinkeby.etherscan.io/tx/${nftContract.hash}`}>Your transaction</a>
+      </div>
+      <div className='mt40'>
+        <div>SMART CONTRACT ADDRESS:</div>
+        <a href={`https://rinkeby.etherscan.io/address/${contractAddress}`}>{contractAddress}</a>
       </div>
     </div>
   )
