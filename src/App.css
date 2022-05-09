@@ -1,6 +1,6 @@
 .main-app {
     text-align: center;
-    margin: 100px;
+    margin: 50px;
 }
 
 .cta-button {
@@ -23,4 +23,15 @@
 
 .mt40 {
     margin-top: 40px;
+}
+
+.minted-img-wrapp {
+    width: 500px;
+    height: 500px;
+    margin: 40px auto;
+}
+
+img {
+    max-width: 100%;
+    max-height: 100%;
 }

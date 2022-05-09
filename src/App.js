@@ -1,15 +1,19 @@
 import { useEffect, useState } from 'react';
+import axios from 'axios';
 import './App.css';
-import contract from './contracts/HomeUaTestNFT3.json';
+import contract from './contracts/HomeUaTestNFT4.json';
 import { ethers } from 'ethers';
+import gifHomeUa from './images/homeua.gif'
 
-const contractAddress = "0xc70850eE33a5b6851167336992F36Bd059210bA7";
+const contractAddress = "0xB2d494DCbEC3Aa221Fcf11E51B5718EE52484977";
 const abi = contract.abi;
 
 function App() {
   const [currentAccount, setCurrentAccount] = useState(null);
   const [isMinting, setMinting] = useState(false);
   const [nftContract, setNftContract] = useState(null);
+  const [mintedNFT, setMintedNFT] = useState(null);
+  const [error, setTxError] = useState(null);
 
   useEffect(() => {
     checkWalletIsConnected();
@@ -65,11 +69,15 @@ function App() {
         let nftTxn = await nftContract.mint(1, { value: ethers.utils.parseEther("0.05") });
         setMinting(true);
         console.log("Mining... please wait");
-        await nftTxn.wait();
+        let tx = await nftTxn.wait();
         setMinting(false);
         console.log(`Mined, see transaction: https://rinkeby.etherscan.io/tx/${nftTxn.hash}`);
         setNftContract(nftTxn)
-        console.log('nftTxn ', nftTxn)
+        let event = tx.events[0]
+        let value = event.args[2]
+        let tokenId = value.toNumber()
+
+        await getMintedNFT(tokenId)
 
       } else {
         console.log("Ethereum object does not exist");
@@ -77,6 +85,37 @@ function App() {
 
     } catch (err) {
       console.log(err);
+    }
+  }
+
+  // Gets the minted NFT data
+  const getMintedNFT = async (tokenId) => {
+    try {
+      const { ethereum } = window
+      console.log('tokenId ', tokenId)
+
+      if (ethereum) {
+        const provider = new ethers.providers.Web3Provider(ethereum)
+        const signer = provider.getSigner()
+        const nftContract = new ethers.Contract(
+            contractAddress,
+            abi,
+            signer
+        )
+
+        let tokenUri = await nftContract.tokenURI(tokenId)
+        const ipfsToHTTP = tokenUri.replace("ipfs://", "https://ipfs.io/ipfs/");
+        let { data } = await axios.get(ipfsToHTTP)
+        const image = data?.image.replace("ipfs://", "https://ipfs.io/ipfs/");
+        data.image = image;
+
+        setMintedNFT(data)
+      } else {
+        console.log("Ethereum object doesn't exist!")
+      }
+    } catch (error) {
+      console.log(error)
+      setTxError(error.message)
     }
   }
 
@@ -104,7 +143,30 @@ function App() {
       </div>
       {
         isMinting &&
-            <div className='mt40'>...Minting HOMEUA</div>
+          <div className='mt40'>
+            <div>...Minting HOMEUA</div>
+            <div className='mt40'>
+              <img
+                  src={gifHomeUa}
+                  alt='minting HOMEUA NFT'
+              />
+            </div>
+          </div>
+      }
+      {
+        mintedNFT &&
+          <div className='mt40'>
+            <div>NAME: {mintedNFT?.name}</div>
+            <div className='minted-img-wrapp mt40'>
+              <img
+                  src={mintedNFT?.image}
+                  alt='minted HOMEUA NFT'
+              />
+            </div>
+            <div className='mt40'>
+              <div>DESCRIPTION: {mintedNFT?.description}</div>
+            </div>
+          </div>
       }
       {
         nftContract?.from &&
