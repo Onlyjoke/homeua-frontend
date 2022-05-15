@@ -1,17 +1,19 @@
 import {useEffect, useState} from 'react';
 import axios from 'axios';
+import CounterInput from "react-counter-input";
+import { useMoralisWeb3Api, useMoralis } from "react-moralis";
 
 import './App.css';
 import contract from './contracts/HomeUaTestNFT4.json';
 import {ethers} from 'ethers';
 import gifHomeUa from './images/homeua.gif'
-import CounterInput from "react-counter-input";
 
 const contractAddress = "0xB2d494DCbEC3Aa221Fcf11E51B5718EE52484977";
 const abi = contract.abi;
 const price = 0.05;
 
 function App() {
+    const isMobile = window.innerWidth <= 768;
     const [currentAccount, setCurrentAccount] = useState(null);
     const [isMinting, setMinting] = useState(false);
     const [nftContract, setNftContract] = useState(null);
@@ -19,12 +21,15 @@ function App() {
     const [error, setTxError] = useState(null);
     const [mintCounter, changeMintCounter] = useState(1);
 
+    const Web3Api = useMoralisWeb3Api();
+    const { authenticate, isAuthenticated } = useMoralis();
+
     useEffect(() => {
         checkWalletIsConnected();
-    }, [])
+    }, [currentAccount])
 
     const checkWalletIsConnected = async () => {
-        const {ethereum} = window;
+        const { ethereum } = window;
 
         if (!ethereum) {
             console.log("Make sure you have Metamask installed!");
@@ -45,16 +50,23 @@ function App() {
     }
 
     const connectWalletHandler = async () => {
-        const {ethereum} = window;
+        const { ethereum } = window;
 
         if (!ethereum) {
             alert("Please install Metamask!");
         }
 
         try {
-            const accounts = await ethereum.request({method: 'eth_requestAccounts'});
-            console.log("Found an account! Address: ", accounts[0]);
-            setCurrentAccount(accounts[0]);
+            if (!isAuthenticated) {
+                let user;
+
+                isMobile ?
+                    user = await authenticate({ provider: "walletconnect" })
+                    :
+                    user = await authenticate()
+
+                setCurrentAccount(user?.get("accounts")[0]);
+            }
         } catch (err) {
             console.log(err)
         }
@@ -62,7 +74,7 @@ function App() {
 
     const mintNftHandler = async () => {
         try {
-            const {ethereum} = window;
+            const { ethereum } = window;
 
             if (ethereum) {
                 const provider = new ethers.providers.Web3Provider(ethereum);
@@ -82,12 +94,14 @@ function App() {
                 let event = tx.events[0]
                 let value = event.args[2]
                 let tokenId = value.toNumber()
-                console.log('tx', tx)
-                console.log('event', event)
-                console.log('event', value)
-                console.log('tokenId', tokenId)
-                console.log('WWW signer WWW', signer)
 
+                const options = {
+                    address: contractAddress,
+                    chain: "eth",
+                };
+
+                const NFTs = await Web3Api.token.getAllTokenIds(options);
+                console.log('NFTs ', NFTs);
 
                 await getMintedNFT(tokenId)
 
@@ -113,11 +127,13 @@ function App() {
                     signer
                 )
 
-                let tokenUri = await nftContract.tokenURI(tokenId)
+                let tokenUri = await nftContract.tokenURI(tokenId);
+                console.log('tokenUri ', tokenUri)
                 const ipfsToHTTP = tokenUri.replace("ipfs://", "https://ipfs.io/ipfs/");
-                let {data} = await axios.get(ipfsToHTTP)
-                const image = data?.image.replace("ipfs://", "https://ipfs.io/ipfs/");
-                data.image = image;
+                let { data } = await axios.get(ipfsToHTTP);
+
+                data.image = data?.image.replace("ipfs://", "https://ipfs.io/ipfs/");
+                console.log('data ', data)
 
                 setMintedNFT(data)
             } else {
@@ -145,6 +161,7 @@ function App() {
                 </button>
                 <div className='mint-nft-counter'>
                     <CounterInput
+                        count={mintCounter}
                         min={1}
                         max={5}
                         onCountChange={count => changeMintCounter(count)}
