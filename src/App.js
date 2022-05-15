@@ -22,29 +22,38 @@ function App() {
     const [mintCounter, changeMintCounter] = useState(1);
 
     const Web3Api = useMoralisWeb3Api();
-    const { authenticate, isAuthenticated } = useMoralis();
+    const { authenticate, isAuthenticated, logout } = useMoralis();
 
     useEffect(() => {
-        checkWalletIsConnected();
-    }, [currentAccount])
 
-    const checkWalletIsConnected = async () => {
-        const { ethereum } = window;
+        const getAccounts = async () => {
+            const { ethereum } = window;
 
-        if (!ethereum) {
-            console.log("Make sure you have Metamask installed!");
-            return;
-        } else {
-            console.log("Wallet exists! We're ready to go!")
+            if (!ethereum) {
+                console.log("Make sure you have Metamask installed!");
+                return;
+            } else {
+                console.log("Wallet exists! We're ready to go!")
+            }
+            const accounts = await ethereum.request({ method: 'eth_accounts' });
+
+            checkWalletIsConnected(accounts);
+
+            ethereum.on('accountsChanged', checkWalletIsConnected);
         }
 
-        const accounts = await ethereum.request({method: 'eth_accounts'});
+        getAccounts();
 
+    }, [])
+
+    const checkWalletIsConnected = async (accounts) => {
         if (accounts.length !== 0) {
             const account = accounts[0];
             console.log("Found an authorized account: ", account);
             setCurrentAccount(account);
         } else {
+            setCurrentAccount(null);
+            await logout();
             console.log("No authorized account found");
         }
     }
